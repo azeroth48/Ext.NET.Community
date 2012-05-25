@@ -23,47 +23,46 @@
  *              See license.txt and http://www.ext.net/license/.
  *              See AGPL License at http://www.gnu.org/licenses/agpl-3.0.txt
  ********/
-
 using System;
 using System.ComponentModel;
 using System.Text;
 using System.Web.UI;
-
+ 
 using Ext.Net.Utilities;
 using Newtonsoft.Json;
-
+ 
 namespace Ext.Net
 {
-	/// <summary>
-	/// 
-	/// </summary>
-	[Description("")]
+    /// <summary>
+    ///
+    /// </summary>
+    [Description("")]
     public partial class DirectEventJsonConverter : ExtJsonConverter
     {
-		/// <summary>
-		/// 
-		/// </summary>
-		[Description("")]
+        /// <summary>
+        ///
+        /// </summary>
+        [Description("")]
         public override bool CanConvert(Type valueType)
         {
             return typeof(ComponentDirectEvent).IsAssignableFrom(valueType);
         }
-
-		/// <summary>
-		/// 
-		/// </summary>
-		[Description("")]
+ 
+        /// <summary>
+        ///
+        /// </summary>
+        [Description("")]
         public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object value, JsonSerializer serializer)
         {
             if (value != null && value is ComponentDirectEvent)
             {
                 ComponentDirectEvent directEvent = (ComponentDirectEvent)value;
-
+ 
                 if (!directEvent.IsDefault)
                 {
                     Control owner = null;
                     MessageBusDirectEvent busEvent = directEvent as MessageBusDirectEvent;
-
+ 
                     if (this.Owner is BaseItem)
                     {
                         owner = ((BaseItem)this.Owner).Owner;
@@ -72,54 +71,62 @@ namespace Ext.Net
                     {
                         owner = (Control)this.Owner;
                     }
-
+ 
                     directEvent.Owner = owner;
                     directEvent.ExtraParams.Owner = owner;
-
+ 
                     foreach (Parameter param in directEvent.ExtraParams)
                     {
                         param.Owner = owner;
                     }
-                    
+                     
                     string configObject = new ClientConfig().SerializeInternal(directEvent, directEvent.Owner);
-
+ 
                     StringBuilder cfgObj = new StringBuilder(configObject.Length + 64);
-
+ 
                     cfgObj.Append(configObject);
                     cfgObj.Remove(cfgObj.Length - 1, 1);
                     cfgObj.AppendFormat("{0}control:this", configObject.Length > 2 ? "," : "");
-
+ 
                     if (busEvent != null)
                     {
                         cfgObj.Append(",eventType:'bus'");
                     }
-
-                    if (this.PropertyName != "Click")
-                    {                        
-                        cfgObj.AppendFormat(",action:'{0}:'+name", busEvent != null ? busEvent.Name : this.PropertyName);                        
+ 
+                    if (busEvent == null)
+                    {
+                        if (this.PropertyName != "Click")
+                        {
+                            cfgObj.AppendFormat(",action:'{0}'", this.PropertyName);
+                        }
                     }
-
+                    else
+                    {
+                        cfgObj.AppendFormat(",action:'{0}:'+name", busEvent.Name);
+                    }
+                     
+ 
                     cfgObj.Append("}");
-
+ 
                     if (this.PropertyName.IsNotEmpty())
                     {
                         directEvent.SetArgumentList(this.Owner.GetType().GetProperty(this.PropertyName));
                     }
-
+ 
                     JFunction jFunction = new JFunction("Ext.net.directRequest(".ConcatWith(cfgObj.ToString(), ");"), directEvent.ArgumentList.ToArray());
                     HandlerConfig cfg = directEvent.GetListenerConfig();
                     string scope = directEvent.Scope.IsEmpty() || directEvent.Scope == "this" ? "" : directEvent.Scope;
-
+ 
                     StringBuilder sb = new StringBuilder();
-                    
+                     
                     sb.Append("{");
                     sb.Append("fn:").Append(jFunction.ToScript()).Append(",");
-
+ 
                     if (scope.Length > 0)
                     {
                         sb.Append("scope:").Append(scope).Append(",");
                     }
-
+ 
                     if (busEvent != null)
                     {
                         if (busEvent.Bus.IsNotEmpty())
@@ -129,39 +136,40 @@ namespace Ext.Net
                         if (busEvent.Name.IsNotEmpty())
                         {
                             sb.Append("name:'").Append(busEvent.Name).Append("',");
-                        }                                                
+                        }                                               
                     }
-
+ 
                     string cfgStr = cfg.Serialize();
-
+ 
                     if (cfgStr != "{}")
                     {
                         sb.Append(cfgStr.Chop());
                     }
-
+ 
                     if (sb[sb.Length - 1] == ',')
                     {
                         sb.Remove(sb.Length - 1, 1);
                     }
-
+ 
                     sb.Append("}");
-
+ 
                     writer.WriteRawValue(sb.ToString());
-
+ 
                     return;
                 }
             }
-
+ 
             writer.WriteRawValue("{}");
         }
-
-		/// <summary>
-		/// 
-		/// </summary>
-		[Description("")]
+ 
+        /// <summary>
+        ///
+        /// </summary>
+        [Description("")]
         public override object ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             throw new NotImplementedException();
         }
     }
+}
 }
